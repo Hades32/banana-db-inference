@@ -15,13 +15,19 @@ RUN pip3 install -r requirements.txt
 ADD server.py .
 EXPOSE 8000
 
-# Add your huggingface auth key here
-ENV HF_AUTH_TOKEN=your_token
-
-# Add your model weight files 
-# (in this case we have a python script)
-ADD download.py .
-RUN python3 download.py
+ARG S3_ENDPOINT=""
+ENV S3_ENDPOINT="${S3_ENDPOINT}"
+ARG S3_BUCKET=""
+ENV S3_BUCKET="${S3_BUCKET}"
+ARG S3_REGION=""
+ENV S3_REGION="${S3_REGION}"
+ARG S3_KEY=""
+ENV S3_KEY="${S3_KEY}"
+ARG S3_SECRET=""
+ENV S3_SECRET="${S3_SECRET}"
+# Add your huggingface auth key here, define models
+ARG HF_AUTH_TOKEN=""
+ENV HF_AUTH_TOKEN="${HF_AUTH_TOKEN}"
 
 # Add your custom app code, init() and inference()
 ADD app.py .
