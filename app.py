@@ -72,15 +72,16 @@ def inference(model_inputs:dict) -> dict:
     with autocast("cuda"):
         image = model(prompt,height=height,width=width,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,generator=generator).images[0]
 
-    buffered = BytesIO()
-    image.save(buffered,format="JPEG")
-
+    bufferedImg = BytesIO()
+    image.save(bufferedImg, format="JPEG")
+    imgBytes = bufferedImg.getvalue()
+    bufferedImg.seek(0)
     
     uploadStart = time.monotonic_ns()
     imgBucketFile = f"results/{input_id}/i1_{uploadStart}.jpg"
     print(f"uploading {imgBucketFile}")
-    s3client.put_object(s3bucket, imgBucketFile, buffered, buffered.getbuffer().nbytes)
+    s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
     print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
 
     # Return the results as a dictionary
-    return {'image_base64': base64.b64encode(buffered.getvalue()).decode('utf-8'), 'image_path': imgBucketFile}
+    return {'image_base64': base64.b64encode(imgBytes).decode('utf-8'), 'image_path': imgBucketFile}
