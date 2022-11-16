@@ -25,6 +25,9 @@ def init():
     print("init done")
     return
 
+def dummy_safety_checker(images, clip_input):
+    return images, false
+
 # Inference is ran for every server call
 # Reference your preloaded global model variable here.
 def inference(model_inputs:dict) -> dict:
@@ -53,7 +56,7 @@ def inference(model_inputs:dict) -> dict:
     os.system("test -d dreambooth_weights/1200 && mv dreambooth_weights/1200 tmpmoveme && rm -rf dreambooth_weights && mv tmpmoveme dreambooth_weights")
 
     print("setting up pipeline")
-    model = StableDiffusionPipeline.from_pretrained("dreambooth_weights/",use_auth_token=HF_AUTH_TOKEN).to("cuda")
+    model = StableDiffusionPipeline.from_pretrained("dreambooth_weights/",use_auth_token=HF_AUTH_TOKEN, safety_checker=dummy_safety_checker).to("cuda")
     
     #If "seed" is not sent, we won't specify a seed in the call
     generator = None
