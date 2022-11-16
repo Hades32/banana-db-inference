@@ -45,8 +45,12 @@ def inference(model_inputs:dict) -> dict:
     weightsObj = f'weights/{input_id}.zip'
     print(f"downloading {weightsObj}")
     s3client.fget_object(s3bucket, weightsObj, 'weights.zip')
+    print("extracting weights")
     with zipfile.ZipFile('weights.zip', 'r') as f:
         f.extractall('dreambooth_weights')
+    
+    # workaround because I was stupid
+    os.system("test -d dreambooth_weights/1200 && mv dreambooth_weights/1200 tmpmoveme && rm -rf dreambooth_weights && mv tmpmoveme dreambooth_weights")
 
     print("setting up pipeline")
     model = StableDiffusionPipeline.from_pretrained("dreambooth_weights/",use_auth_token=HF_AUTH_TOKEN).to("cuda")
