@@ -19,6 +19,8 @@ s3client = Minio(
 # Init is ran on server startup
 # Load your model to GPU as a global variable here using the variable name "model"
 def init():
+    if os.environ["S3_ENDPOINT"] == "":
+        raise RuntimeError("S3_ENDPOINT not set")
     print("init done")
     return
 
@@ -26,7 +28,7 @@ def init():
 # Reference your preloaded global model variable here.
 def inference(model_inputs:dict) -> dict:
     # Parse out your arguments
-    prompt = model_inputs.get('prompt', None)
+    prompt = model_inputs.get('prompt', "a picture of a sks person")
     height = model_inputs.get('height', 512)
     width = model_inputs.get('width', 512)
     num_inference_steps = model_inputs.get('num_inference_steps', 50)
@@ -34,8 +36,11 @@ def inference(model_inputs:dict) -> dict:
     input_seed = model_inputs.get("seed",None)
     input_id = model_inputs.get("id",None)
 
+    if input_id is None:
+        return {"error": "missing input_id"}
+
     HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
-    os.makedirs("dreambooth_weights/")
+    os.makedirs("dreambooth_weights/", exist_ok=True)
     weightsObj = f'weights/{input_id}.zip'
     print(f"downloading {weightsObj}")
     s3client.fget_object(s3bucket, weightsObj, 'weights.zip')
