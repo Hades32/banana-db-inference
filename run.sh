@@ -10,7 +10,13 @@ callID=$(curl -s -XPOST 'https://api.banana.dev/start/v4/' -H 'Content-Type: app
     "apiKey": "'$API_KEY'",
     "modelKey": "'$MODEL_KEY'",
     "modelInputs": {
-        "file_id": "input-1"
+        "id": "input-1",
+        "prompt":  "a picture of a sks person",
+        "height":  512,
+        "width":  512,
+        "num_inference_steps":  50,
+        "guidance_scale":  8.5,
+        "seed": 42
     }
 }' | jq -j .callID)
 
