@@ -8,11 +8,11 @@ RUN apt-get update && apt-get install -y git
 
 # Install python packages
 RUN pip3 install --upgrade pip
-ADD requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 # We add the banana boilerplate here
-ADD server.py .
+COPY server.py .
 EXPOSE 8000
 
 ARG S3_ENDPOINT=""
@@ -30,6 +30,6 @@ ARG HF_AUTH_TOKEN=""
 ENV HF_AUTH_TOKEN="${HF_AUTH_TOKEN}"
 
 # Add your custom app code, init() and inference()
-ADD app.py .
+COPY app.py .
 
 CMD python3 -u server.py
