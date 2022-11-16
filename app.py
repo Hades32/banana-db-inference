@@ -19,6 +19,7 @@ s3client = Minio(
 # Init is ran on server startup
 # Load your model to GPU as a global variable here using the variable name "model"
 def init():
+    print("init done")
     return
 
 # Inference is ran for every server call
