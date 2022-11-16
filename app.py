@@ -9,6 +9,7 @@ import zipfile
 from minio import Minio
 from minio.error import S3Error
 
+HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
 
 # Init is ran on server startup
 # Load your model to GPU as a global variable here using the variable name "model"
@@ -41,11 +42,13 @@ def inference(model_inputs:dict) -> dict:
     if input_id is None:
         return {"error": "missing input_id"}
 
-    HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
+    downloadStart = time.monotonic_ns()
     os.makedirs("dreambooth_weights/", exist_ok=True)
     weightsObj = f'weights/{input_id}.zip'
     print(f"downloading {weightsObj}")
     s3client.fget_object(s3bucket, weightsObj, 'weights.zip')
+    print(f"finished downloading in {(time.monotonic_ns() - downloadStart)/1_000_000_000}s")
+
     print("extracting weights")
     with zipfile.ZipFile('weights.zip', 'r') as f:
         f.extractall('dreambooth_weights')
@@ -66,7 +69,7 @@ def inference(model_inputs:dict) -> dict:
     
     print("Runing the model")
     with autocast("cuda"):
-        image = model(prompt,height=height,width=width,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,generator=generator)["sample"][0]
+        image = model(prompt,height=height,width=width,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,generator=generator).images[0]
 
     buffered = BytesIO()
     image.save(buffered,format="JPEG")
