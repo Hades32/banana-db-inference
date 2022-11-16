@@ -1,5 +1,5 @@
 sanic==22.6.2
-diffusers==0.2.3
+git+https://github.com/ShivamShrirao/diffusers.git
 transformers
 scipy
 minio
