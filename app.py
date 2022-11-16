@@ -9,19 +9,10 @@ import zipfile
 from minio import Minio
 from minio.error import S3Error
 
-s3bucket = os.environ["S3_BUCKET"]
-s3client = Minio(
-    os.environ["S3_ENDPOINT"],
-    access_key=os.environ["S3_KEY"],
-    secret_key=os.environ["S3_SECRET"],
-    region=os.environ["S3_REGION"],
-)
 
 # Init is ran on server startup
 # Load your model to GPU as a global variable here using the variable name "model"
 def init():
-    if os.environ["S3_ENDPOINT"] == "":
-        raise RuntimeError("S3_ENDPOINT not set")
     print("init done")
     return
 
@@ -32,6 +23,13 @@ def dummy_safety_checker(images, clip_input):
 # Reference your preloaded global model variable here.
 def inference(model_inputs:dict) -> dict:
     # Parse out your arguments
+    s3bucket = model_inputs.get("S3_BUCKET", os.getenv("S3_BUCKET"))
+    s3client = Minio(
+        model_inputs.get("S3_ENDPOINT", os.getenv("S3_ENDPOINT")),
+        access_key=model_inputs.get("S3_KEY", os.getenv("S3_KEY")),
+        secret_key=model_inputs.get("S3_SECRET", os.getenv("S3_SECRET")),
+        region=model_inputs.get("S3_REGION", os.getenv("S3_REGION"))
+    )
     prompt = model_inputs.get('prompt', "a picture of a sks person")
     height = model_inputs.get('height', 512)
     width = model_inputs.get('width', 512)
@@ -73,8 +71,12 @@ def inference(model_inputs:dict) -> dict:
     buffered = BytesIO()
     image.save(buffered,format="JPEG")
 
-    print("uploading result")
-    s3client.put_object(s3bucket, f"results/{input_id}/i1.jpg", buffered, buffered.getbuffer().nbytes)
+    
+    uploadStart = time.monotonic_ns()
+    imgBucketFile = f"results/{input_id}/i1_{uploadStart}.jpg"
+    print(f"uploading {imgBucketFile}")
+    s3client.put_object(s3bucket, imgBucketFile, buffered, buffered.getbuffer().nbytes)
+    print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
 
     # Return the results as a dictionary
-    return {'image_base64': base64.b64encode(buffered.getvalue()).decode('utf-8')}
+    return {'image_base64': base64.b64encode(buffered.getvalue()).decode('utf-8'), 'image_path': imgBucketFile}
