@@ -75,11 +75,13 @@ def inference(model_inputs: dict) -> dict:
     images = []
     with autocast("cuda"):
         for prompt in prompts:
+            inferStart = time.monotonic_ns()
             image = model(prompt,
                           height=height, width=width,
                           num_inference_steps=num_inference_steps,
                           guidance_scale=guidance_scale,
                           generator=generator).images[0]
+            print(f"model ran in {(time.monotonic_ns() - inferStart)/1_000_000_000}s")
             images.append(image)
 
     image_paths = []

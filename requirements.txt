@@ -3,3 +3,5 @@ git+https://github.com/ShivamShrirao/diffusers.git
 transformers
 scipy
 minio
+accelerate
+ftfy
