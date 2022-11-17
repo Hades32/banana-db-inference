@@ -96,6 +96,7 @@ def inference(model_inputs: dict) -> dict:
         print(f"uploading {imgBucketFile}")
         s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
         print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
+        image_paths.append(imgBucketFile)
 
     # Return the results as a dictionary
     return {'image_paths': image_paths}
