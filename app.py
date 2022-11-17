@@ -23,7 +23,7 @@ def dummy_safety_checker(images, clip_input):
 
 # Inference is ran for every server call
 # Reference your preloaded global model variable here.
-def inference(model_inputs:dict) -> dict:
+def inference(model_inputs: dict) -> dict:
     # Parse out your arguments
     s3bucket = model_inputs.get("S3_BUCKET", os.getenv("S3_BUCKET"))
     s3client = Minio(
@@ -32,16 +32,21 @@ def inference(model_inputs:dict) -> dict:
         secret_key=model_inputs.get("S3_SECRET", os.getenv("S3_SECRET")),
         region=model_inputs.get("S3_REGION", os.getenv("S3_REGION"))
     )
-    prompt = model_inputs.get('prompt', "a picture of a sks person")
+    single_prompt = model_inputs.get('prompt', None)
+    prompts = model_inputs.get('prompts', None)
     height = model_inputs.get('height', 512)
     width = model_inputs.get('width', 512)
     num_inference_steps = model_inputs.get('num_inference_steps', 50)
     guidance_scale = model_inputs.get('guidance_scale', 7.5)
-    input_seed = model_inputs.get("seed",None)
-    input_id = model_inputs.get("id",None)
+    input_seed = model_inputs.get("seed", None)
+    input_id = model_inputs.get("id", None)
 
     if input_id is None:
         return {"error": "missing input_id"}
+    if prompt is None and prompts is None:
+        return {'message': "No prompt provided"}
+    if promts is None:
+        prompts = [single_prompt]
 
     downloadStart = time.monotonic_ns()
     os.makedirs("dreambooth_weights/", exist_ok=True)
@@ -53,35 +58,42 @@ def inference(model_inputs:dict) -> dict:
     print("extracting weights")
     with zipfile.ZipFile('weights.zip', 'r') as f:
         f.extractall('dreambooth_weights')
-    
+
     # workaround because I was stupid
     os.system("test -d dreambooth_weights/1200 && mv dreambooth_weights/1200 tmpmoveme && rm -rf dreambooth_weights && mv tmpmoveme dreambooth_weights")
 
     print("setting up pipeline")
-    model = StableDiffusionPipeline.from_pretrained("dreambooth_weights/",use_auth_token=HF_AUTH_TOKEN, safety_checker=dummy_safety_checker).to("cuda")
-    
-    #If "seed" is not sent, we won't specify a seed in the call
+    model = StableDiffusionPipeline.from_pretrained(
+        "dreambooth_weights/", use_auth_token=HF_AUTH_TOKEN, safety_checker=dummy_safety_checker).to("cuda")
+
+    # If "seed" is not sent, we won't specify a seed in the call
     generator = None
     if input_seed != None:
         generator = torch.Generator("cuda").manual_seed(input_seed)
-    
-    if prompt == None:
-        return {'message': "No prompt provided"}
-    
-    print("Runing the model")
-    with autocast("cuda"):
-        image = model(prompt,height=height,width=width,num_inference_steps=num_inference_steps,guidance_scale=guidance_scale,generator=generator).images[0]
 
-    bufferedImg = BytesIO()
-    image.save(bufferedImg, format="JPEG")
-    imgBytes = bufferedImg.getvalue()
-    bufferedImg.seek(0)
-    
-    uploadStart = time.monotonic_ns()
-    imgBucketFile = f"results/{input_id}/i1_{uploadStart}.jpg"
-    print(f"uploading {imgBucketFile}")
-    s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
-    print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
+    print("Runing the model")
+    images = []
+    with autocast("cuda"):
+        for promt in promts:
+            image = model(prompt,
+                          height=height, width=width,
+                          num_inference_steps=num_inference_steps,
+                          guidance_scale=guidance_scale,
+                          generator=generator).images[0]
+            images.append(image)
+
+    image_paths = []
+    for image in images:
+        bufferedImg = BytesIO()
+        image.save(bufferedImg, format="JPEG")
+        imgBytes = bufferedImg.getvalue()
+        bufferedImg.seek(0)
+
+        uploadStart = time.monotonic_ns()
+        imgBucketFile = f"results/{input_id}/i1_{uploadStart}.jpg"
+        print(f"uploading {imgBucketFile}")
+        s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
+        print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
 
     # Return the results as a dictionary
-    return {'image_base64': base64.b64encode(imgBytes).decode('utf-8'), 'image_path': imgBucketFile}
+    return {'image_paths': image_paths}
