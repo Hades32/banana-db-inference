@@ -71,7 +71,7 @@ def inference(model_inputs: dict) -> dict:
     if input_seed != None:
         generator = torch.Generator("cuda").manual_seed(input_seed)
 
-    print("Runing the model")
+    print("Running the model")
     images = []
     with autocast("cuda"):
         for prompt in prompts:
