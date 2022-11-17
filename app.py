@@ -45,7 +45,7 @@ def inference(model_inputs: dict) -> dict:
         return {"error": "missing input_id"}
     if single_prompt is None and prompts is None:
         return {'message': "No prompt provided"}
-    if promts is None:
+    if prompts is None:
         prompts = [single_prompt]
 
     downloadStart = time.monotonic_ns()
