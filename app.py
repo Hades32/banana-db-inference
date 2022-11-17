@@ -4,6 +4,7 @@ from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
 import base64
 from io import BytesIO
 import os
+import re
 import time
 import zipfile
 
@@ -85,14 +86,14 @@ def inference(model_inputs: dict) -> dict:
             images.append(image)
 
     image_paths = []
-    for image in images:
+    for i, image in enumerate(images):
         bufferedImg = BytesIO()
         image.save(bufferedImg, format="JPEG")
         imgBytes = bufferedImg.getvalue()
         bufferedImg.seek(0)
 
         uploadStart = time.monotonic_ns()
-        imgBucketFile = f"results/{input_id}/i1_{uploadStart}.jpg"
+        imgBucketFile = f"results/{input_id}/{re.sub(r'[^a-z -]+', ' ', prompts[i].lower())}_{uploadStart}.jpg"
         print(f"uploading {imgBucketFile}")
         s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
         print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
