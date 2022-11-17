@@ -43,7 +43,7 @@ def inference(model_inputs: dict) -> dict:
 
     if input_id is None:
         return {"error": "missing input_id"}
-    if prompt is None and prompts is None:
+    if single_prompt is None and prompts is None:
         return {'message': "No prompt provided"}
     if promts is None:
         prompts = [single_prompt]
@@ -74,7 +74,7 @@ def inference(model_inputs: dict) -> dict:
     print("Runing the model")
     images = []
     with autocast("cuda"):
-        for promt in promts:
+        for prompt in prompts:
             image = model(prompt,
                           height=height, width=width,
                           num_inference_steps=num_inference_steps,
