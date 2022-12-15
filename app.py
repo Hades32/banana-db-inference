@@ -7,6 +7,7 @@ import os
 import re
 import time
 import zipfile
+import json
 
 from minio import Minio
 from minio.error import S3Error
@@ -40,10 +41,13 @@ def inference(model_inputs: dict) -> dict:
     num_inference_steps = model_inputs.get('num_inference_steps', 50)
     guidance_scale = model_inputs.get('guidance_scale', 7.5)
     input_seed = model_inputs.get("seed", None)
-    input_id = model_inputs.get("id", None)
+    input_model = model_inputs.get("weights_path", None)
+    output_path = model_inputs.get("output_path", None)
 
-    if input_id is None:
-        return {"error": "missing input_id"}
+    if input_model is None:
+        return {"error": "missing input_model"}
+    if output_path is None:
+        return {"error": "missing output_path"}
     if single_prompt is None and prompts is None:
         return {'message': "No prompt provided"}
     if prompts is None:
@@ -51,9 +55,8 @@ def inference(model_inputs: dict) -> dict:
 
     downloadStart = time.monotonic_ns()
     os.makedirs("dreambooth_weights/", exist_ok=True)
-    weightsObj = f'weights/{input_id}.zip'
-    print(f"downloading {weightsObj}")
-    s3client.fget_object(s3bucket, weightsObj, 'weights.zip')
+    print(f"downloading {input_model}")
+    s3client.fget_object(s3bucket, input_model, 'weights.zip')
     print(f"finished downloading in {(time.monotonic_ns() - downloadStart)/1_000_000_000}s")
 
     print("extracting weights")
@@ -93,11 +96,20 @@ def inference(model_inputs: dict) -> dict:
         bufferedImg.seek(0)
 
         uploadStart = time.monotonic_ns()
-        imgBucketFile = f"results/{input_id}/{re.sub(r'[^a-z -]+', ' ', prompts[i].lower())}_{uploadStart}.jpg"
+        imgBucketFile = f"{output_path}/img_{i}_{uploadStart}.jpg"
         print(f"uploading {imgBucketFile}")
         s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
         print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
-        image_paths.append(imgBucketFile)
+        image_paths.append({path: imgBucketFile, prompt: prompts[i]})
 
     # Return the results as a dictionary
-    return {'image_paths': image_paths}
+    result = {'image_paths': image_paths}
+    # Create a BytesIO object where the json data will be written
+    json_data = BytesIO()
+    # Serialize the dict to json and write it to the BytesIO object
+    json.dump(result, json_data)
+    # Get the json data from the BytesIO object
+    json_string = json_data.getvalue()
+    s3client.put_object(s3bucket, f"{output_path}/results.json", json_string, len(json_string))
+    
+    return result
