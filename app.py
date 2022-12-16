@@ -20,9 +20,6 @@ def init():
     print("init done")
     return
 
-def dummy_safety_checker(images, clip_input):
-    return images, false
-
 # Inference is ran for every server call
 # Reference your preloaded global model variable here.
 def inference(model_inputs: dict) -> dict:
@@ -70,7 +67,7 @@ def inference(model_inputs: dict) -> dict:
 
         print("setting up pipeline")
         model = StableDiffusionPipeline.from_pretrained(
-            "dreambooth_weights/", use_auth_token=HF_AUTH_TOKEN, safety_checker=dummy_safety_checker).to("cuda")
+            "dreambooth_weights/", use_auth_token=HF_AUTH_TOKEN, safety_checker=None).to("cuda")
 
         # If "seed" is not sent, we won't specify a seed in the call
         generator = None
@@ -115,6 +112,6 @@ def inference(model_inputs: dict) -> dict:
         s3client.put_object(s3bucket, f"{output_path}/results.json", json_string, len(json_string))
     
     except Exception as err:
-        s3client.put_object(s3bucket, f"{output_path}/error.txt", err.__repr__(), len(err.__repr__()))
+        s3client.put_object(s3bucket, f"{output_path}/error.txt", err.__str__(), len(err.__str__()))
 
     return result
