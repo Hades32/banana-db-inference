@@ -91,13 +91,13 @@ def inference(model_inputs: dict) -> dict:
         for i, image in enumerate(images):
             bufferedImg = BytesIO()
             image.save(bufferedImg, format="JPEG")
-            imgBytes = bufferedImg.getvalue()
+            num_bytes = bufferedImg.tell()
             bufferedImg.seek(0)
 
             uploadStart = time.monotonic_ns()
             imgBucketFile = f"{output_path}/img_{i}_{uploadStart}.jpg"
             print(f"uploading {imgBucketFile}")
-            s3client.put_object(s3bucket, imgBucketFile, bufferedImg, len(imgBytes))
+            s3client.put_object(s3bucket, imgBucketFile, bufferedImg, num_bytes)
             print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
             image_paths.append({'path': imgBucketFile, 'prompt': prompts[i]})
 
@@ -105,10 +105,16 @@ def inference(model_inputs: dict) -> dict:
         result = {'image_paths': image_paths, 'finished_at': time.time()}
         json_data = BytesIO()
         json.dump(result, json_data)
-        json_string = json_data.getvalue()
-        s3client.put_object(s3bucket, f"{output_path}/results.json", json_string, len(json_string))
+        num_bytes = json_data.tell()
+        json_data.seek(0)
+        s3client.put_object(s3bucket, f"{output_path}/results.json", json_data, num_bytes)
     
     except Exception as err:
-        s3client.put_object(s3bucket, f"{output_path}/error.txt", err.__str__(), len(err.__str__()))
+        result = {'error': err.__str__()}
+        json_data = BytesIO()
+        json.dump(result, json_data)
+        num_bytes = json_data.tell()
+        json_data.seek(0)
+        s3client.put_object(s3bucket, f"{output_path}/results.json", json_data, num_bytes)
 
     return result
