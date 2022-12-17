@@ -3,6 +3,7 @@ from torch import autocast
 from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
 import base64
 from io import BytesIO
+from io import StringIO
 import os
 import re
 import time
@@ -103,7 +104,7 @@ def inference(model_inputs: dict) -> dict:
 
         # Return and save results
         result = {'image_paths': image_paths, 'finished_at': time.time()}
-        json_data = BytesIO()
+        json_data = StringIO()
         json.dump(result, json_data)
         num_bytes = json_data.tell()
         json_data.seek(0)
@@ -111,7 +112,7 @@ def inference(model_inputs: dict) -> dict:
     
     except Exception as err:
         result = {'error': err.__str__()}
-        json_data = BytesIO()
+        json_data = StringIO()
         json.dump(result, json_data)
         num_bytes = json_data.tell()
         json_data.seek(0)
