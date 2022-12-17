@@ -101,13 +101,10 @@ def inference(model_inputs: dict) -> dict:
             print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
             image_paths.append({'path': imgBucketFile, 'prompt': prompts[i]})
 
-        # Return the results as a dictionary
+        # Return and save results
         result = {'image_paths': image_paths}
-        # Create a BytesIO object where the json data will be written
         json_data = BytesIO()
-        # Serialize the dict to json and write it to the BytesIO object
         json.dump(result, json_data)
-        # Get the json data from the BytesIO object
         json_string = json_data.getvalue()
         s3client.put_object(s3bucket, f"{output_path}/results.json", json_string, len(json_string))
     
