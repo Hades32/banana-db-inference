@@ -102,7 +102,7 @@ def inference(model_inputs: dict) -> dict:
             image_paths.append({'path': imgBucketFile, 'prompt': prompts[i]})
 
         # Return and save results
-        result = {'image_paths': image_paths}
+        result = {'image_paths': image_paths, 'finished_at': time.time()}
         json_data = BytesIO()
         json.dump(result, json_data)
         json_string = json_data.getvalue()
