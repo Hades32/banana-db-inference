@@ -1,28 +1,31 @@
-import torch
-from torch import autocast
-from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
 import base64
-from io import BytesIO
-from io import StringIO
+import json
 import os
 import re
 import time
 import zipfile
-import json
+from io import BytesIO
 
+import torch
+from diffusers import LMSDiscreteScheduler, StableDiffusionPipeline
 from minio import Minio
 from minio.error import S3Error
+from torch import autocast
 
 HF_AUTH_TOKEN = os.getenv("HF_AUTH_TOKEN")
 
 # Init is ran on server startup
 # Load your model to GPU as a global variable here using the variable name "model"
+
+
 def init():
     print("init done!")
     return
 
 # Inference is ran for every server call
 # Reference your preloaded global model variable here.
+
+
 def inference(model_inputs: dict) -> dict:
     # Parse out your arguments
     s3bucket = model_inputs.get("S3_BUCKET", os.getenv("S3_BUCKET"))
@@ -57,7 +60,8 @@ def inference(model_inputs: dict) -> dict:
         os.makedirs("dreambooth_weights/", exist_ok=True)
         print(f"downloading {input_model}")
         s3client.fget_object(s3bucket, input_model, 'weights.zip')
-        print(f"finished downloading in {(time.monotonic_ns() - downloadStart)/1_000_000_000}s")
+        print(
+            f"finished downloading in {(time.monotonic_ns() - downloadStart)/1_000_000_000}s")
 
         print("extracting weights")
         with zipfile.ZipFile('weights.zip', 'r') as f:
@@ -81,41 +85,41 @@ def inference(model_inputs: dict) -> dict:
             for prompt in prompts:
                 inferStart = time.monotonic_ns()
                 image = model(prompt,
-                            height=height, width=width,
-                            num_inference_steps=num_inference_steps,
-                            guidance_scale=guidance_scale,
-                            generator=generator).images[0]
-                print(f"model ran in {(time.monotonic_ns() - inferStart)/1_000_000_000}s")
+                              height=height, width=width,
+                              num_inference_steps=num_inference_steps,
+                              guidance_scale=guidance_scale,
+                              generator=generator).images[0]
+                print(
+                    f"model ran in {(time.monotonic_ns() - inferStart)/1_000_000_000}s")
                 images.append(image)
 
-        image_paths = []
+        generations = []
+        upload_id = int(time.time())
         for i, image in enumerate(images):
             bufferedImg = BytesIO()
             image.save(bufferedImg, format="JPEG")
-            num_bytes = bufferedImg.tell()
             bufferedImg.seek(0)
-
             uploadStart = time.monotonic_ns()
-            imgBucketFile = f"{output_path}/img_{i}_{uploadStart}.jpg"
+            imgBucketFile = f"img_{upload_id}_{i}.jpg"
             print(f"uploading {imgBucketFile}")
-            s3client.put_object(s3bucket, imgBucketFile, bufferedImg, num_bytes)
-            print(f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
-            image_paths.append({'path': imgBucketFile, 'prompt': prompts[i]})
+            s3client.put_object(s3bucket, f"{output_path}/{imgBucketFile}",
+                                bufferedImg, len(bufferedImg.getbuffer()))
+            print(
+                f"finished uploading in {(time.monotonic_ns() - uploadStart)/1_000_000_000}s")
+            generations.append({'path': imgBucketFile, 'prompt': prompts[i]})
 
         # Return and save results
-        result = {'image_paths': image_paths, 'finished_at': time.time()}
-        json_data = StringIO()
-        json.dump(result, json_data)
-        num_bytes = json_data.tell()
-        json_data.seek(0)
-        s3client.put_object(s3bucket, f"{output_path}/results.json", json_data, num_bytes)
-    
+        result = {'generations': generations, 'finished_at': time.time()}
+        json_data = BytesIO(json.dumps(result).encode())
+        s3client.put_object(
+            s3bucket, f"{output_path}/results.json", json_data, len(json_data.getbuffer()()))
+
     except Exception as err:
+        print("some exception occured:")
+        print(err)
         result = {'error': err.__str__()}
-        json_data = StringIO()
-        json.dump(result, json_data)
-        num_bytes = json_data.tell()
-        json_data.seek(0)
-        s3client.put_object(s3bucket, f"{output_path}/results.json", json_data, num_bytes)
+        json_data = BytesIO(json.dumps(result).encode())
+        s3client.put_object(
+            s3bucket, f"{output_path}/results.json", json_data, len(json_data.getbuffer()))
 
     return result
