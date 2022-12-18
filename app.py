@@ -112,7 +112,7 @@ def inference(model_inputs: dict) -> dict:
         result = {'generations': generations, 'finished_at': time.time()}
         json_data = BytesIO(json.dumps(result).encode())
         s3client.put_object(
-            s3bucket, f"{output_path}/results.json", json_data, len(json_data.getbuffer()()))
+            s3bucket, f"{output_path}/results.json", json_data, len(json_data.getbuffer()))
 
     except Exception as err:
         print("some exception occured:")
