@@ -113,9 +113,10 @@ def inference(model_inputs: dict) -> dict:
         json_data = BytesIO(json.dumps(result).encode())
         s3client.put_object(
             s3bucket, f"{output_path}/results.json", json_data, len(json_data.getbuffer()))
+        print("everything done")
 
     except Exception as err:
-        print("some exception occured:")
+        print("some exception occurred:")
         print(err)
         result = {'error': err.__str__()}
         json_data = BytesIO(json.dumps(result).encode())
